@@ -455,9 +455,43 @@ create_backup_file() {
     local db_config=$(echo "$server_config" | jq -r '.database')
     local dump_opts="--single-transaction --routines --triggers --events --databases $database"
     
-    # Add backup type specific options
+    # Check if binary logging is enabled for incremental backups
     if [[ "$backup_type" == "incremental" ]]; then
-        dump_opts="$dump_opts --flush-logs --master-data=2"
+        local binlog_enabled=false
+        
+        # Test if binary logging is available
+        local test_cmd
+        case "$connection_method" in
+            "$CONNECTION_DIRECT")
+                test_cmd=$(build_mysql_command "$connection_method" "$server_config" "$db_config" "query" "-e 'SHOW VARIABLES LIKE \"log_bin\";'")
+                if eval "$test_cmd" 2>/dev/null | grep -q "ON"; then
+                    binlog_enabled=true
+                fi
+                ;;
+            "$CONNECTION_SSH")
+                local ssh_prefix
+                ssh_prefix=$(build_ssh_command_prefix "$server_config")
+                if eval "$ssh_prefix 'mysql -h$(echo "$db_config" | jq -r .host) -P$(echo "$db_config" | jq -r '.port // 3306') -u$(echo "$db_config" | jq -r .username) -p$(echo "$db_config" | jq -r .password) --skip-ssl -e \"SHOW VARIABLES LIKE \\\"log_bin\\\";\"'" 2>/dev/null | grep -q "ON"; then
+                    binlog_enabled=true
+                fi
+                ;;
+        esac
+        
+        if [[ "$binlog_enabled" == "true" ]]; then
+            # Binary logging is available, use proper incremental backup
+            dump_opts="$dump_opts --flush-logs --master-data=2"
+            log "DEBUG" "[$server_name] Binary logging detected, using incremental backup with binary log positions"
+        else
+            # Binary logging not available, fall back to full backup
+            log "WARN" "[$server_name] Binary logging not enabled, performing full backup instead of incremental"
+            backup_type="full"
+            
+            # Update backup path to reflect full backup
+            local timestamp=$(date '+%Y%m%d_%H%M%S')
+            local backup_file="full_backup_${database}_${timestamp}.sql.gz"
+            local backup_dir=$(dirname "$backup_path")
+            backup_path="$backup_dir/$backup_file"
+        fi
     fi
     
     log "INFO" "[$server_name] Creating $backup_type backup for database: $database"
