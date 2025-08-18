@@ -118,6 +118,22 @@ validate_server_config() {
         fi
     fi
     
+    # Validate schedule configuration if present
+    local schedule_config=$(echo "$server_config" | jq -r '.schedule // {}')
+    if [[ "$schedule_config" != "{}" ]]; then
+        if ! validate_schedule_config "$server_name" "$schedule_config"; then
+            ((errors++))
+        fi
+    fi
+    
+    # Validate cleanup configuration if present
+    local cleanup_config=$(echo "$server_config" | jq -r '.cleanup // {}')
+    if [[ "$cleanup_config" != "{}" ]]; then
+        if ! validate_cleanup_config "$server_name" "$cleanup_config"; then
+            ((errors++))
+        fi
+    fi
+    
     # Validate backup_connection setting
     local backup_connection=$(echo "$server_config" | jq -r '.backup_connection // "auto"')
     case "$backup_connection" in
@@ -265,6 +281,73 @@ validate_backup_config() {
     if [[ "$include_system" != "empty" && "$include_system" != "null" ]]; then
         if ! echo "$backup_config" | jq -e '.include_system_databases | type == "boolean"' >/dev/null 2>&1; then
             log "ERROR" "[$server_name] include_system_databases must be true or false (boolean)"
+            ((errors++))
+        fi
+    fi
+    
+    return $errors
+}
+
+# Validate schedule configuration
+validate_schedule_config() {
+    local server_name="$1"
+    local schedule_config="$2"
+    local errors=0
+    
+    # Validate full_backup_interval if present
+    local interval=$(echo "$schedule_config" | jq -r '.full_backup_interval // empty')
+    if [[ "$interval" != "empty" && "$interval" != "null" ]]; then
+        case "$interval" in
+            "manual"|"")
+                # Valid manual setting
+                ;;
+            *d|*h|*m)
+                # Validate numeric part
+                local number=${interval%[dhm]}
+                if ! [[ "$number" =~ ^[0-9]+$ ]] || [[ "$number" -eq 0 ]]; then
+                    log "ERROR" "[$server_name] Invalid full_backup_interval: $interval (use format like '7d', '24h', '60m', or 'manual')"
+                    ((errors++))
+                fi
+                ;;
+            *)
+                log "ERROR" "[$server_name] Invalid full_backup_interval: $interval (use format like '7d', '24h', '60m', or 'manual')"
+                ((errors++))
+                ;;
+        esac
+    fi
+    
+    return $errors
+}
+
+# Validate cleanup configuration
+validate_cleanup_config() {
+    local server_name="$1"
+    local cleanup_config="$2"
+    local errors=0
+    
+    # Validate enabled field if present
+    local enabled=$(echo "$cleanup_config" | jq -r '.enabled // empty')
+    if [[ "$enabled" != "empty" && "$enabled" != "null" ]]; then
+        if ! echo "$cleanup_config" | jq -e '.enabled | type == "boolean"' >/dev/null 2>&1; then
+            log "ERROR" "[$server_name] cleanup.enabled must be true or false (boolean)"
+            ((errors++))
+        fi
+    fi
+    
+    # Validate min_full_backups if present
+    local min_backups=$(echo "$cleanup_config" | jq -r '.min_full_backups // empty')
+    if [[ "$min_backups" != "empty" && "$min_backups" != "null" ]]; then
+        if ! [[ "$min_backups" =~ ^[0-9]+$ ]] || [[ "$min_backups" -lt 1 ]]; then
+            log "ERROR" "[$server_name] cleanup.min_full_backups must be a positive integer"
+            ((errors++))
+        fi
+    fi
+    
+    # Validate max_age_days if present
+    local max_age=$(echo "$cleanup_config" | jq -r '.max_age_days // empty')
+    if [[ "$max_age" != "empty" && "$max_age" != "null" ]]; then
+        if ! [[ "$max_age" =~ ^[0-9]+$ ]] || [[ "$max_age" -lt 1 ]]; then
+            log "ERROR" "[$server_name] cleanup.max_age_days must be a positive integer"
             ((errors++))
         fi
     fi

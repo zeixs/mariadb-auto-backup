@@ -411,6 +411,108 @@ tail -f /var/log/cron              # CentOS/RHEL
 log show --predicate 'eventMessage contains "cron"' --last 1h  # macOS
 ```
 
+## ⏰ Automated Scheduling & Cleanup
+
+### Schedule Configuration
+
+Add scheduling and cleanup settings to your `server_config.json`:
+
+```json
+{
+  "production_server": {
+    "database": { ... },
+    "backup_config": { ... },
+    "schedule": {
+      "full_backup_interval": "7d",
+      "comment": "Options: 1d (daily), 7d (weekly), 30d (monthly), or 'manual'"
+    },
+    "cleanup": {
+      "enabled": true,
+      "min_full_backups": 2,
+      "max_age_days": 60,
+      "comment": "Keep at least 2 full backups and delete those older than 60 days"
+    }
+  }
+}
+```
+
+### Backup Scheduler
+
+The backup scheduler handles automated backups and cleanup:
+
+```bash
+# Check schedules and run backups if needed
+./backup_scheduler.sh check
+
+# Force full backup for all servers
+./backup_scheduler.sh force-full
+
+# Run cleanup only (no backups)
+./backup_scheduler.sh cleanup
+```
+
+### Interval Formats
+
+| Format | Description | Example |
+|--------|-------------|---------|
+| `1d` | Daily | Every day |
+| `7d` | Weekly | Every 7 days |
+| `30d` | Monthly | Every 30 days |
+| `12h` | Every 12 hours | Twice daily |
+| `manual` | Manual only | No automatic scheduling |
+
+### Cron Job Setup
+
+Use the helper script to set up automated scheduling:
+
+```bash
+# Set up daily backups at 2 AM
+./setup_cron.sh daily
+
+# Set up weekly backups on Sunday at 2 AM
+./setup_cron.sh weekly
+
+# Set up hourly backups
+./setup_cron.sh hourly
+
+# Custom schedule (every 6 hours)
+./setup_cron.sh custom "0 */6 * * *"
+
+# View current cron job status
+./setup_cron.sh status
+
+# Remove cron job
+./setup_cron.sh remove
+```
+
+### Cleanup Policies
+
+The automatic cleanup system provides intelligent backup management:
+
+#### Cleanup Rules
+- **Minimum Retention**: Always keep at least `min_full_backups` full backups
+- **Age-Based Cleanup**: Delete backups older than `max_age_days`
+- **Orphan Removal**: Remove incremental backups without corresponding full backups
+- **Chain Integrity**: Preserve backup chains for valid restore points
+
+#### Cleanup Examples
+```json
+{
+  "cleanup": {
+    "enabled": true,
+    "min_full_backups": 3,     // Always keep 3 full backups
+    "max_age_days": 90         // Delete backups older than 90 days
+  }
+}
+```
+
+### Scheduling Best Practices
+
+1. **Production Systems**: Use daily or weekly full backups
+2. **Development**: Use manual or less frequent scheduling
+3. **High-Change Databases**: Consider shorter intervals
+4. **Storage Management**: Adjust cleanup policies based on available space
+
 ## 🔄 Restore & Recovery
 
 The restore script provides intelligent backup restoration with automatic detection of full and incremental backups, ensuring no data loss through proper chronological ordering.
