@@ -9,6 +9,7 @@ A comprehensive, production-ready MariaDB/MySQL backup solution with smart conne
 - **🔌 Smart Connection Detection** - Automatic fallback between direct and SSH connections
 - **🔑 Multiple Authentication** - SSH key and password authentication support
 - **📦 Local Storage** - All backups stored locally with organized structure
+- **⚡ Intelligent Restore** - Auto-detection of backup chains with point-in-time recovery
 - **⏰ Automated Scheduling** - Cron-based daily execution
 - **🛡️ Production Ready** - Comprehensive error handling and logging
 - **🔧 Easy Configuration** - JSON-based configuration with validation tools
@@ -171,6 +172,7 @@ The `ssl_mode` option controls how SSL/TLS connections are handled:
 |--------|---------|
 | `setup.sh` | Environment setup and cron configuration |
 | `backup.sh` | Main execution script with validation |
+| `restore.sh` | Intelligent backup restoration with auto-detection |
 | `validate_config.sh` | Configuration validation and testing |
 | `discover_databases.sh` | Database discovery and config generation |
 
@@ -205,13 +207,14 @@ The `ssl_mode` option controls how SSL/TLS connections are handled:
 ```
 mariadb-backup/
 ├── backup.sh              # Main execution script
+├── restore.sh              # Intelligent backup restoration
 ├── setup.sh               # Setup and installation
 ├── mariadb_backup.sh       # Core backup logic
 ├── validate_config.sh      # Configuration validation
 ├── discover_databases.sh   # Database discovery
 ├── server_config.json      # Your configuration
-├── logs/                   # Backup logs
-│   └── backup_YYYYMMDD.log
+├── logs/                   # Backup and restore logs
+│   └── *.log
 ├── backups/                # Local backup storage
 │   ├── server1/
 │   │   ├── database1/
@@ -408,23 +411,121 @@ tail -f /var/log/cron              # CentOS/RHEL
 log show --predicate 'eventMessage contains "cron"' --last 1h  # macOS
 ```
 
-## 🆘 Recovery
+## 🔄 Restore & Recovery
 
-### Restore from Full Backup
+The restore script provides intelligent backup restoration with automatic detection of full and incremental backups, ensuring no data loss through proper chronological ordering.
+
+### Quick Restore Examples
+
 ```bash
-# Decompress and restore
-gunzip < backups/server1/database1/full_backup_database1_20240101_000000.sql.gz | mysql -h server -u user -p database1
+# Restore latest backup
+./restore.sh production_server app_database
+
+# Restore to specific date
+./restore.sh -d 2025-08-15 production_server app_database
+
+# Restore to different target server
+./restore.sh -t 192.168.1.200 -u restore_user -p password production_server app_database
+
+# Dry run to preview restore plan
+./restore.sh --dry-run production_server app_database
+
+# Force restore without prompts
+./restore.sh --force production_server app_database
 ```
 
-### Restore from Incremental Chain
-```bash
-# Restore full backup first
-gunzip < full_backup.sql.gz | mysql -h server -u user -p database1
+### Restore Process
 
-# Then apply incremental backups in order
-gunzip < incremental_backup_20240102.sql.gz | mysql -h server -u user -p database1
-gunzip < incremental_backup_20240103.sql.gz | mysql -h server -u user -p database1
+The restore script automatically:
+
+1. **Analyzes Available Backups** - Scans backup directory for full and incremental backups
+2. **Identifies Baseline** - Finds the appropriate full backup for the target date
+3. **Chronological Ordering** - Sorts incremental backups in proper sequence
+4. **Validates Chain** - Ensures backup chain integrity before starting
+5. **Sequential Restoration** - Applies full backup first, then incrementals in order
+6. **Integrity Checks** - Validates each step to prevent data corruption
+
+### Restore Options
+
+| Option | Description |
+|--------|-------------|
+| `-d, --date DATE` | Restore to specific date (YYYY-MM-DD) |
+| `-t, --target HOST` | Target database host (default: from config) |
+| `-u, --username USER` | Target database username |
+| `-p, --password PASS` | Target database password |
+| `-P, --port PORT` | Target database port (default: 3306) |
+| `--ssl-mode MODE` | SSL mode: auto, disable, require, verify_ca, verify_identity |
+| `--dry-run` | Preview restore plan without executing |
+| `--force` | Skip confirmation prompts |
+| `-h, --help` | Show detailed help |
+
+### Backup Detection Logic
+
+The restore script intelligently detects and processes backups:
+
+- **Full Backups**: `full_backup_<database>_<timestamp>.sql.gz`
+- **Incremental Backups**: `incremental_backup_<database>_<timestamp>.sql.gz`
+- **Automatic Ordering**: Sorts by timestamp to ensure proper sequence
+- **Chain Resolution**: Links incremental backups to their base full backup
+- **Date Filtering**: Includes only backups before/on the target date
+
+### Safety Features
+
+- **Dry Run Mode** - Preview restore operations without executing
+- **Database Overwrite Protection** - Warns before overwriting existing databases
+- **Connection Validation** - Tests database connectivity before starting
+- **Step-by-Step Validation** - Checks each restore operation for success
+- **Force Mode** - Bypass prompts for automated operations
+
+### Point-in-Time Recovery Examples
+
+```bash
+# Restore to specific date (includes all applicable backups)
+./restore.sh -d 2025-08-15 production_server app_database
+
+# Restore to yesterday
+./restore.sh -d $(date -v-1d +%Y-%m-%d) production_server app_database
+
+# Preview restore plan for last week
+./restore.sh --dry-run -d $(date -v-7d +%Y-%m-%d) production_server app_database
 ```
+
+### Cross-Server Restore
+
+```bash
+# Restore to different server
+./restore.sh -t 192.168.1.200 -u restore_user -p password production_server app_database
+
+# Restore with different SSL settings
+./restore.sh --ssl-mode require -t secure.db.server production_server app_database
+
+# Restore to local development environment
+./restore.sh -t localhost -u dev_user -p dev_password production_server app_database
+```
+
+### Manual Restore Process (Alternative)
+
+If you need to restore manually without the script:
+
+```bash
+# 1. Find the appropriate full backup
+ls -la backups/server1/database1/full_backup_*.sql.gz
+
+# 2. Restore full backup
+gunzip < backups/server1/database1/full_backup_database1_20250101_000000.sql.gz | \
+  mysql -h server -u user -p --ssl-mode=disable database1
+
+# 3. Apply incremental backups in chronological order
+gunzip < backups/server1/database1/incremental_backup_database1_20250102_000000.sql.gz | \
+  mysql -h server -u user -p --ssl-mode=disable database1
+gunzip < backups/server1/database1/incremental_backup_database1_20250103_000000.sql.gz | \
+  mysql -h server -u user -p --ssl-mode=disable database1
+```
+
+⚠️ **Important**: When restoring manually, ensure:
+- Incremental backups are applied in exact chronological order
+- The correct SSL mode is used for your server configuration
+- Database permissions allow the restore user to drop/create tables
 
 ## ⚙️ Advanced Configuration
 
