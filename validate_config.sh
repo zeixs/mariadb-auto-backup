@@ -334,21 +334,24 @@ validate_cleanup_config() {
         fi
     fi
     
-    # Validate min_full_backups if present
-    local min_backups=$(echo "$cleanup_config" | jq -r '.min_full_backups // empty')
-    if [[ "$min_backups" != "empty" && "$min_backups" != "null" ]]; then
-        if ! [[ "$min_backups" =~ ^[0-9]+$ ]] || [[ "$min_backups" -lt 1 ]]; then
-            log "ERROR" "[$server_name] cleanup.min_full_backups must be a positive integer"
-            ((errors++))
+    # Only validate numeric fields if cleanup is enabled
+    if [[ "$enabled" == "true" ]]; then
+        # Validate min_full_backups if present
+        local min_backups=$(echo "$cleanup_config" | jq -r '.min_full_backups // empty')
+        if [[ "$min_backups" != "empty" && "$min_backups" != "null" ]]; then
+            if ! [[ "$min_backups" =~ ^[0-9]+$ ]] || [[ "$min_backups" -lt 1 ]]; then
+                log "ERROR" "[$server_name] cleanup.min_full_backups must be a positive integer"
+                ((errors++))
+            fi
         fi
-    fi
-    
-    # Validate max_age_days if present
-    local max_age=$(echo "$cleanup_config" | jq -r '.max_age_days // empty')
-    if [[ "$max_age" != "empty" && "$max_age" != "null" ]]; then
-        if ! [[ "$max_age" =~ ^[0-9]+$ ]] || [[ "$max_age" -lt 1 ]]; then
-            log "ERROR" "[$server_name] cleanup.max_age_days must be a positive integer"
-            ((errors++))
+        
+        # Validate max_age_days if present
+        local max_age=$(echo "$cleanup_config" | jq -r '.max_age_days // empty')
+        if [[ "$max_age" != "empty" && "$max_age" != "null" ]]; then
+            if ! [[ "$max_age" =~ ^[0-9]+$ ]] || [[ "$max_age" -lt 1 ]]; then
+                log "ERROR" "[$server_name] cleanup.max_age_days must be a positive integer"
+                ((errors++))
+            fi
         fi
     fi
     
@@ -562,6 +565,16 @@ generate_sample_config() {
       "mode": "all",
       "exclude_databases": ["test", "temp_db"],
       "include_system_databases": false
+    },
+    "schedule": {
+      "full_backup_interval": "7d",
+      "comment": "Options: 1d (daily), 7d (weekly), 30d (monthly), 12h (every 12 hours), or 'manual'"
+    },
+    "cleanup": {
+      "enabled": true,
+      "min_full_backups": 2,
+      "max_age_days": 30,
+      "comment": "Keep at least 2 full backups and delete those older than 30 days"
     }
   },
   "remote_ssh_key_server": {
@@ -583,6 +596,16 @@ generate_sample_config() {
       "mode": "specific",
       "databases": ["production_app", "user_data", "analytics"],
       "include_system_databases": false
+    },
+    "schedule": {
+      "full_backup_interval": "1d",
+      "comment": "Daily backups for production systems"
+    },
+    "cleanup": {
+      "enabled": true,
+      "min_full_backups": 3,
+      "max_age_days": 90,
+      "comment": "Keep at least 3 full backups and delete those older than 90 days"
     }
   },
   "auto_detect_server": {
@@ -604,6 +627,14 @@ generate_sample_config() {
       "mode": "exclude",
       "exclude_databases": ["temp", "cache", "session_data"],
       "include_system_databases": false
+    },
+    "schedule": {
+      "full_backup_interval": "manual",
+      "comment": "Manual backups only - no automatic scheduling"
+    },
+    "cleanup": {
+      "enabled": false,
+      "comment": "Cleanup disabled - manual maintenance required"
     }
   }
 }
@@ -624,6 +655,24 @@ EOF
     echo "  • all: Backup all databases (optionally exclude some)"
     echo "  • specific: Backup only specified databases"
     echo "  • exclude: Backup all except specified databases"
+    echo ""
+    log "INFO" "Schedule configuration:"
+    echo "  • full_backup_interval: '1d', '7d', '30d', '12h', or 'manual'"
+    echo "  • manual: No automatic scheduling (default if not specified)"
+    echo "  • Time formats: d=days, h=hours, m=minutes"
+    echo ""
+    log "INFO" "Cleanup configuration:"
+    echo "  • enabled: true/false - Enable automatic cleanup"
+    echo "  • min_full_backups: Minimum number of full backups to keep"
+    echo "  • max_age_days: Delete backups older than this many days"
+    echo "  • Cleanup preserves backup chain integrity"
+    echo ""
+    log "INFO" "SSL modes:"
+    echo "  • auto: Let MySQL/MariaDB auto-negotiate SSL (default)"
+    echo "  • disable: Disable SSL connections"
+    echo "  • require: Require SSL connections"
+    echo "  • verify_ca: Require SSL with CA verification"
+    echo "  • verify_identity: Require SSL with full certificate verification"
     echo ""
     log "INFO" "Backup options:"
     echo "  • exclude_databases: Array of database names to exclude"

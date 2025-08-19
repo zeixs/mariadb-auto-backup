@@ -143,13 +143,19 @@ setup_cron() {
     
     log "INFO" "Setting up cron jobs..."
     
-    local backup_script="${SCRIPT_DIR}/backup.sh"
+    # Check if configuration uses new scheduler features
+    local has_schedule_config=false
+    if [[ -f "$CONFIG_FILE" ]]; then
+        if jq -e '.[] | select(.schedule) | length > 0' "$CONFIG_FILE" >/dev/null 2>&1; then
+            has_schedule_config=true
+        fi
+    fi
     
     # Check if cron job already exists
-    if crontab -l 2>/dev/null | grep -q "mariadb.*backup"; then
-        log "WARN" "MariaDB backup cron job already exists"
-        log "INFO" "Current cron jobs:"
-        crontab -l 2>/dev/null | grep -i "backup\|mariadb" || true
+    if crontab -l 2>/dev/null | grep -q "backup"; then
+        log "WARN" "Backup cron job already exists"
+        log "INFO" "Current backup cron jobs:"
+        crontab -l 2>/dev/null | grep -i "backup" || true
         
         read -p "Do you want to update the cron job? (y/N): " -n 1 -r
         echo
@@ -159,17 +165,78 @@ setup_cron() {
         fi
         
         # Remove existing backup cron jobs
-        (crontab -l 2>/dev/null | grep -v "mariadb.*backup") | crontab -
+        (crontab -l 2>/dev/null | grep -v "backup") | crontab -
     fi
     
-    # Add new cron job
-    local cron_entry="0 0 * * * $backup_script >/dev/null 2>&1"
-    (crontab -l 2>/dev/null; echo "$cron_entry") | crontab -
-    
-    log "INFO" "Cron job added successfully:"
-    log "INFO" "  Daily backup at midnight: $cron_entry"
-    log "INFO" "  Full backup: 1st of each month"
-    log "INFO" "  Incremental backup: All other days"
+    if [[ "$has_schedule_config" == "true" ]]; then
+        # Use new scheduler system
+        log "INFO" "Detected schedule configuration - setting up intelligent scheduler"
+        echo
+        echo "Your configuration includes schedule settings. Choose setup method:"
+        echo "  1) Use intelligent scheduler (checks schedule and runs when needed)"
+        echo "  2) Use traditional system (daily at midnight, full on 1st of month)"
+        echo
+        read -p "Choose option (1/2) [1]: " -n 1 -r
+        echo
+        
+        if [[ "${REPLY:-1}" == "2" ]]; then
+            # Traditional system
+            local backup_script="${SCRIPT_DIR}/backup.sh"
+            local cron_entry="0 0 * * * $backup_script >/dev/null 2>&1"
+            (crontab -l 2>/dev/null; echo "$cron_entry") | crontab -
+            
+            log "INFO" "Traditional cron job added:"
+            log "INFO" "  Daily backup at midnight: $cron_entry"
+            log "INFO" "  Full backup: 1st of each month"
+            log "INFO" "  Incremental backup: All other days"
+        else
+            # Intelligent scheduler
+            echo "Choose scheduler frequency:"
+            echo "  1) Daily (recommended for production)"
+            echo "  2) Hourly (for high-change databases)"
+            echo "  3) Weekly (for low-change systems)"
+            echo "  4) Custom schedule"
+            echo
+            read -p "Choose option (1/2/3/4) [1]: " -n 1 -r
+            echo
+            
+            case "${REPLY:-1}" in
+                "2")
+                    "${SCRIPT_DIR}/setup_cron.sh" hourly
+                    ;;
+                "3")
+                    "${SCRIPT_DIR}/setup_cron.sh" weekly
+                    ;;
+                "4")
+                    echo "Enter custom cron expression (e.g., '0 */6 * * *' for every 6 hours):"
+                    read -r custom_schedule
+                    "${SCRIPT_DIR}/setup_cron.sh" custom "$custom_schedule"
+                    ;;
+                *)
+                    "${SCRIPT_DIR}/setup_cron.sh" daily
+                    ;;
+            esac
+            
+            log "INFO" "Intelligent scheduler configured successfully"
+            log "INFO" "The scheduler will:"
+            log "INFO" "  - Check your schedule configuration automatically"
+            log "INFO" "  - Run full backups based on your interval settings"
+            log "INFO" "  - Perform automatic cleanup based on your retention policies"
+        fi
+    else
+        # Traditional system (no schedule config detected)
+        local backup_script="${SCRIPT_DIR}/backup.sh"
+        local cron_entry="0 0 * * * $backup_script >/dev/null 2>&1"
+        (crontab -l 2>/dev/null; echo "$cron_entry") | crontab -
+        
+        log "INFO" "Traditional cron job added:"
+        log "INFO" "  Daily backup at midnight: $cron_entry"
+        log "INFO" "  Full backup: 1st of each month"
+        log "INFO" "  Incremental backup: All other days"
+        log "INFO" ""
+        log "INFO" "💡 Tip: Add 'schedule' and 'cleanup' sections to your config"
+        log "INFO" "   to use the intelligent scheduler with flexible intervals!"
+    fi
 }
 
 # Set permissions

@@ -463,7 +463,10 @@ The backup scheduler handles automated backups and cleanup:
 
 ### Cron Job Setup
 
-Use the helper script to set up automated scheduling:
+You have two options for automated scheduling:
+
+#### Option 1: Intelligent Scheduler (Recommended)
+Use this if you have `schedule` configuration in your JSON:
 
 ```bash
 # Set up daily backups at 2 AM
@@ -484,6 +487,22 @@ Use the helper script to set up automated scheduling:
 # Remove cron job
 ./setup_cron.sh remove
 ```
+
+#### Option 2: Traditional Schedule
+Use the original setup if you prefer the simple monthly full + daily incremental pattern:
+
+```bash
+# This sets up: Daily at midnight, full backup on 1st of month
+./setup.sh
+```
+
+#### Automatic Detection
+When you run `./setup.sh`, it will automatically:
+- Detect if you have `schedule` configuration
+- Offer to set up the appropriate scheduler
+- Guide you through the setup process
+
+**Important**: Don't use both systems simultaneously to avoid conflicts.
 
 ### Cleanup Policies
 
@@ -512,6 +531,22 @@ The automatic cleanup system provides intelligent backup management:
 2. **Development**: Use manual or less frequent scheduling
 3. **High-Change Databases**: Consider shorter intervals
 4. **Storage Management**: Adjust cleanup policies based on available space
+
+### Two Scheduling Approaches
+
+#### 🧠 Intelligent Scheduler
+- **Configurable intervals**: Set `full_backup_interval` per server
+- **Smart scheduling**: Only runs when backups are actually needed
+- **Automatic cleanup**: Manages retention policies automatically
+- **Flexible**: Different schedules for different servers
+
+#### 📅 Traditional Scheduler  
+- **Fixed schedule**: Daily at midnight, full backup on 1st of month
+- **Simple**: One schedule for all servers
+- **Predictable**: Always runs at the same time
+- **Legacy**: Compatible with older configurations
+
+**Recommendation**: Use the intelligent scheduler for new setups, especially if you need different backup frequencies for different servers.
 
 ## 🔄 Restore & Recovery
 
