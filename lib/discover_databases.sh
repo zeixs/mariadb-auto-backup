@@ -5,11 +5,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/server_config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/conf/server_config.json"
 
 # Source the centralized logging utility
-source "${SCRIPT_DIR}/logging_utils.sh"
+source "${SCRIPT_DIR}/lib/logging_utils.sh"
 
 # Legacy log function for backward compatibility  
 log() {

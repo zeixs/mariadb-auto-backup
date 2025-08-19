@@ -5,13 +5,13 @@
 # Ensures data integrity by applying backups in correct chronological order
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Source the logging utility
-source "$SCRIPT_DIR/logging_utils.sh"
+source "$SCRIPT_DIR/lib/logging_utils.sh"
 
 # Configuration files
-CONFIG_FILE="$SCRIPT_DIR/server_config.json"
+CONFIG_FILE="$SCRIPT_DIR/conf/server_config.json"
 
 # Global variables
 RESTORE_MODE=""

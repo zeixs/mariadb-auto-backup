@@ -1,5 +1,39 @@
-keys
-server_config.json
-backups
-logs
-server_config.sample.json
+# Backup data
+backups/
+!backups/.gitkeep
+
+# Logs
+logs/
+!logs/.gitkeep
+
+# SSH keys
+keys/
+!keys/.gitkeep
+
+# Configuration files (contains sensitive data)
+conf/server_config.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if any)
+node_modules/
+
+# Test outputs
+test_results/
+coverage/
+conf

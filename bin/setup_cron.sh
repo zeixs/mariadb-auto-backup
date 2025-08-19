@@ -5,8 +5,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCHEDULER_SCRIPT="$SCRIPT_DIR/backup_scheduler.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCHEDULER_SCRIPT="$SCRIPT_DIR/bin/backup_scheduler.sh"
 
 # Colors for output
 RED='\033[0;31m'

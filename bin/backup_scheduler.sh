@@ -5,10 +5,10 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/logging_utils.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/lib/logging_utils.sh"
 
-CONFIG_FILE="$SCRIPT_DIR/server_config.json"
+CONFIG_FILE="$SCRIPT_DIR/conf/server_config.json"
 
 # Source only the validation function we need
 validate_config_file() {
@@ -287,7 +287,7 @@ check_and_run_backups() {
         
         if needs_full_backup "$server_name" "$config"; then
             log "INFO" "[$server_name] Running scheduled full backup"
-            if "$SCRIPT_DIR/mariadb_backup.sh" full "$server_name"; then
+            if "$SCRIPT_DIR/lib/mariadb_backup.sh" full "$server_name"; then
                 log "SUCCESS" "[$server_name] Scheduled full backup completed"
                 backup_needed=true
             else
@@ -315,7 +315,7 @@ force_full_backup() {
     
     log "INFO" "Forcing full backup for all servers"
     
-    if "$SCRIPT_DIR/mariadb_backup.sh" full; then
+    if "$SCRIPT_DIR/lib/mariadb_backup.sh" full; then
         log "SUCCESS" "Forced full backup completed"
     else
         log "ERROR" "Forced full backup failed"

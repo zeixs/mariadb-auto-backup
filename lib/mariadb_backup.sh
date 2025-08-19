@@ -9,8 +9,8 @@
 set -euo pipefail
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/server_config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/conf/server_config.json"
 LOG_DIR="${SCRIPT_DIR}/logs"
 LOCK_FILE="${SCRIPT_DIR}/backup.lock"
 
@@ -22,7 +22,7 @@ CONNECTION_DIRECT="direct"
 CONNECTION_SSH="ssh"
 
 # Source the centralized logging utility
-source "${SCRIPT_DIR}/logging_utils.sh"
+source "${SCRIPT_DIR}/lib/logging_utils.sh"
 
 # Legacy logging function for backward compatibility
 log() {

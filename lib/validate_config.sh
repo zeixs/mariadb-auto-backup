@@ -5,11 +5,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/server_config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/conf/server_config.json"
 
 # Source the centralized logging utility
-source "${SCRIPT_DIR}/logging_utils.sh"
+source "${SCRIPT_DIR}/lib/logging_utils.sh"
 
 # Legacy log function for backward compatibility
 log() {
@@ -488,7 +488,7 @@ test_ssh_db_connection() {
     esac
     
     local ssh_opts="-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -p $port"
-    local mysql_test_cmd="mysql -h$db_host -P$db_port -u$db_user -p$db_password $ssl_opts -e 'SELECT 1;' &>/dev/null"
+    local mysql_test_cmd="mysql -h$db_host -P$db_port -u$db_user -p$db_password $ssl_opts -e 'SELECT 1;' >/dev/null 2>&1"
     local ssh_cmd
     
     case "$auth_type" in
@@ -545,7 +545,10 @@ test_backup_directory() {
 
 # Generate sample configuration with new features
 generate_sample_config() {
-    local sample_file="${SCRIPT_DIR}/server_config.sample.json"
+    local sample_file="${SCRIPT_DIR}/conf/server_config.sample.json"
+    
+    # Ensure conf directory exists
+    mkdir -p "${SCRIPT_DIR}/conf"
     
     log "INFO" "Generating sample configuration file: $sample_file"
     

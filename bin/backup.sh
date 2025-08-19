@@ -5,12 +5,12 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/server_config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/conf/server_config.json"
 LOG_DIR="${SCRIPT_DIR}/logs"
 
 # Source the centralized logging utility
-source "${SCRIPT_DIR}/logging_utils.sh"
+source "${SCRIPT_DIR}/lib/logging_utils.sh"
 
 # Legacy log function for backward compatibility
 log() {
@@ -31,9 +31,9 @@ validate_environment() {
     fi
     
     # Validate configuration
-    if ! "${SCRIPT_DIR}/validate_config.sh" validate >/dev/null 2>&1; then
+    if ! "${SCRIPT_DIR}/lib/validate_config.sh" validate >/dev/null 2>&1; then
         log_error "Configuration validation failed"
-        log_info "Run './validate_config.sh validate' for detailed error information"
+        log_info "Run './lib/validate_config.sh validate' for detailed error information"
         return 1
     fi
     
@@ -103,7 +103,7 @@ execute_backup() {
         log "INFO" "Testing backup configuration and connections..."
         
         # Test connections
-        if "${SCRIPT_DIR}/validate_config.sh" test; then
+        if "${SCRIPT_DIR}/lib/validate_config.sh" test; then
             log "INFO" "Connection tests passed"
             
             # Test backup directory creation
@@ -135,7 +135,7 @@ execute_backup() {
     mkdir -p "$LOG_DIR"
     
     # Execute the main backup script
-    if "${SCRIPT_DIR}/mariadb_backup.sh" "$backup_type"; then
+    if "${SCRIPT_DIR}/lib/mariadb_backup.sh" "$backup_type"; then
         log "INFO" "Backup execution completed successfully"
         
         # Show backup summary

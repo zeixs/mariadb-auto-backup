@@ -4,8 +4,8 @@
 # This script provides consistent logging across all backup scripts
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${SCRIPT_DIR}/logs"
+LOGGING_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="${LOGGING_SCRIPT_DIR}/../logs"
 
 # Ensure logs directory exists
 mkdir -p "$LOG_DIR"

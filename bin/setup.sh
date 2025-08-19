@@ -5,11 +5,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/server_config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/conf/server_config.json"
 
 # Source the centralized logging utility
-source "${SCRIPT_DIR}/logging_utils.sh"
+source "${SCRIPT_DIR}/lib/logging_utils.sh"
 
 # Legacy log function for backward compatibility
 log() {
@@ -104,11 +104,13 @@ create_directories() {
     mkdir -p "${SCRIPT_DIR}/logs"
     mkdir -p "${SCRIPT_DIR}/backups"
     mkdir -p "${SCRIPT_DIR}/keys"
+    mkdir -p "${SCRIPT_DIR}/conf"
     
     # Set proper permissions
     chmod 755 "${SCRIPT_DIR}/logs"
     chmod 755 "${SCRIPT_DIR}/backups"
     chmod 700 "${SCRIPT_DIR}/keys"
+    chmod 755 "${SCRIPT_DIR}/conf"
     
     log "INFO" "Directory structure created successfully"
 }
@@ -117,12 +119,23 @@ create_directories() {
 setup_configuration() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
         log "INFO" "Creating sample configuration..."
-        ./validate_config.sh sample
-        log "WARN" "Please edit server_config.json with your actual server details"
+        ./lib/validate_config.sh sample
+        
+        # Copy sample to actual config file
+        local sample_file="${SCRIPT_DIR}/conf/server_config.sample.json"
+        if [[ -f "$sample_file" ]]; then
+            cp "$sample_file" "$CONFIG_FILE"
+            log "INFO" "Configuration file created: $CONFIG_FILE"
+        else
+            log "ERROR" "Sample configuration file not found: $sample_file"
+            return 1
+        fi
+        
+        log "WARN" "Please edit conf/server_config.json with your actual server details"
         return 1
     else
         log "INFO" "Configuration file exists, validating..."
-        if ./validate_config.sh validate; then
+        if ./lib/validate_config.sh validate; then
             log "INFO" "Configuration is valid"
             return 0
         else
@@ -202,18 +215,18 @@ setup_cron() {
             
             case "${REPLY:-1}" in
                 "2")
-                    "${SCRIPT_DIR}/setup_cron.sh" hourly
+                    "${SCRIPT_DIR}/bin/setup_cron.sh" hourly
                     ;;
                 "3")
-                    "${SCRIPT_DIR}/setup_cron.sh" weekly
+                    "${SCRIPT_DIR}/bin/setup_cron.sh" weekly
                     ;;
                 "4")
                     echo "Enter custom cron expression (e.g., '0 */6 * * *' for every 6 hours):"
                     read -r custom_schedule
-                    "${SCRIPT_DIR}/setup_cron.sh" custom "$custom_schedule"
+                    "${SCRIPT_DIR}/bin/setup_cron.sh" custom "$custom_schedule"
                     ;;
                 *)
-                    "${SCRIPT_DIR}/setup_cron.sh" daily
+                    "${SCRIPT_DIR}/bin/setup_cron.sh" daily
                     ;;
             esac
             
@@ -245,7 +258,7 @@ set_permissions() {
     
     # Make scripts executable
     chmod +x "${SCRIPT_DIR}/mariadb_backup.sh"
-    chmod +x "${SCRIPT_DIR}/validate_config.sh"
+    chmod +x "${SCRIPT_DIR}/lib/validate_config.sh"
     chmod +x "${SCRIPT_DIR}/discover_databases.sh"
     chmod +x "${SCRIPT_DIR}/backup.sh"
     
@@ -266,7 +279,7 @@ test_setup() {
     log "INFO" "Testing setup..."
     
     # Test configuration
-    if ! ./validate_config.sh test; then
+    if ! ./lib/validate_config.sh test; then
         log "ERROR" "Setup test failed - please check configuration"
         return 1
     fi
@@ -290,16 +303,17 @@ show_summary() {
     echo "  ${SCRIPT_DIR}/"
     echo "  ├── backup.sh              # Main execution script"
     echo "  ├── mariadb_backup.sh       # Core backup logic"
-    echo "  ├── validate_config.sh      # Configuration validation"
+    echo "  ├── lib/validate_config.sh      # Configuration validation"
     echo "  ├── discover_databases.sh   # Database discovery tool"
-    echo "  ├── server_config.json      # Your server configuration"
+    echo "  ├── conf/                   # Configuration files"
+    echo "  │   └── server_config.json  # Your server configuration"
     echo "  ├── logs/                   # Backup logs"
     echo "  ├── backups/                # Local backup storage"
     echo "  └── keys/                   # SSH private keys"
     echo ""
     echo "🚀 Quick Start:"
-    echo "  1. Edit configuration:      nano server_config.json"
-    echo "  2. Validate setup:          ./validate_config.sh test"
+    echo "  1. Edit configuration:      nano conf/server_config.json"
+    echo "  2. Validate setup:          ./lib/validate_config.sh test"
     echo "  3. Discover databases:      ./discover_databases.sh list-servers"
     echo "  4. Run manual backup:       ./backup.sh"
     echo "  5. View logs:              tail -f logs/backup_\$(date +%Y%m%d).log"
@@ -312,7 +326,7 @@ show_summary() {
     echo ""
     echo "🔧 Configuration Tools:"
     echo "  • ./discover_databases.sh discover <server>     # See available databases"
-    echo "  • ./validate_config.sh sample                   # Generate sample config"
+    echo "  • ./lib/validate_config.sh sample                   # Generate sample config"
     echo "  • ./backup.sh --test                           # Test backup without execution"
 }
 
@@ -378,7 +392,7 @@ main() {
     
     # Setup configuration
     if ! setup_configuration; then
-        log_warning "Please configure server_config.json and run setup again"
+        log_warning "Please configure conf/server_config.json and run setup again"
         log_session_end "setup.sh" 1
         exit 1
     fi

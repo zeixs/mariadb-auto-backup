@@ -19,11 +19,13 @@ A comprehensive, production-ready MariaDB/MySQL backup solution with smart conne
 ### 1. Setup
 ```bash
 # Clone and setup the environment
-./setup.sh
+./bin/setup.sh
 
 # Edit configuration with your server details
-nano server_config.json
+nano conf/server_config.json
 ```
+
+**📁 Configuration Location**: All server configurations are now stored in the `./conf/` directory for better organization and security.
 
 ### 2. Configuration
 ```json
@@ -64,20 +66,20 @@ nano server_config.json
 ### 3. Run
 ```bash
 # Test configuration
-./backup.sh test
+./bin/backup.sh test
 
 # Run backup
-./backup.sh
+./bin/backup.sh
 
 # Check status
-./backup.sh status
+./bin/backup.sh status
 ```
 
 ## 📋 Configuration Guide
 
 ### Server Configuration
 
-Each server in `server_config.json` supports:
+Each server in `conf/server_config.json` supports:
 
 #### Basic Settings
 - `backup_connection` - Connection type: "local", "remote", or "auto" (default: "auto")
@@ -170,49 +172,62 @@ The `ssl_mode` option controls how SSL/TLS connections are handled:
 
 | Script | Purpose |
 |--------|---------|
-| `setup.sh` | Environment setup and cron configuration |
-| `backup.sh` | Main execution script with validation |
-| `restore.sh` | Intelligent backup restoration with auto-detection |
-| `validate_config.sh` | Configuration validation and testing |
-| `discover_databases.sh` | Database discovery and config generation |
+| `bin/setup.sh` | Environment setup and cron configuration |
+| `bin/backup.sh` | Main execution script with validation |
+| `bin/restore.sh` | Intelligent backup restoration with auto-detection |
+| `lib/validate_config.sh` | Configuration validation and testing |
+| `lib/discover_databases.sh` | Database discovery and config generation |
 
 ### Discovery Tool
 
 ```bash
 # List configured servers
-./discover_databases.sh list-servers
+./lib/discover_databases.sh list-servers
 
 # Discover databases on a server
-./discover_databases.sh discover server1
+./lib/discover_databases.sh discover server1
 
 # Generate configuration snippets
-./discover_databases.sh generate server1 specific "app_db,user_db"
+./lib/discover_databases.sh generate server1 specific "app_db,user_db"
 ```
 
 ### Validation Tool
 
 ```bash
 # Validate configuration
-./validate_config.sh validate
+./lib/validate_config.sh validate
 
 # Test connections
-./validate_config.sh test
+./lib/validate_config.sh test
 
 # Generate sample config
-./validate_config.sh sample
+./lib/validate_config.sh sample
 ```
 
 ## 📁 Directory Structure
 
 ```
 mariadb-backup/
-├── backup.sh              # Main execution script
-├── restore.sh              # Intelligent backup restoration
-├── setup.sh               # Setup and installation
-├── mariadb_backup.sh       # Core backup logic
-├── validate_config.sh      # Configuration validation
-├── discover_databases.sh   # Database discovery
-├── server_config.json      # Your configuration
+├── bin/                    # Main executable scripts
+│   ├── backup.sh           # Main execution script
+│   ├── restore.sh          # Intelligent backup restoration
+│   ├── setup.sh            # Setup and installation
+│   ├── backup_scheduler.sh # Automated scheduling and cleanup
+│   └── setup_cron.sh       # Cron job configuration
+├── lib/                    # Helper functions and utilities
+│   ├── mariadb_backup.sh   # Core backup logic
+│   ├── validate_config.sh  # Configuration validation
+│   ├── discover_databases.sh # Database discovery
+│   └── logging_utils.sh    # Centralized logging
+├── docs/                   # Documentation
+│   ├── README.md           # Complete user guide
+│   └── blog.md             # Implementation guide
+├── tests/                  # Test files and utilities
+│   └── README.md           # Testing documentation
+├── conf/                   # Configuration files
+│   └── server_config.json  # Your server configuration
+├── README.md               # Project overview
+├── LICENSE                 # Project license
 ├── logs/                   # Backup and restore logs
 │   └── *.log
 ├── backups/                # Local backup storage
@@ -239,37 +254,37 @@ mariadb-backup/
 ### Manual Backups
 ```bash
 # Automatic mode (respects schedule)
-./backup.sh
+./bin/backup.sh
 
 # Force full backup
-./backup.sh run full
+./bin/backup.sh run full
 
 # Force incremental backup
-./backup.sh run incremental
+./bin/backup.sh run incremental
 
 # Test mode (no actual backup)
-./backup.sh --test
+./bin/backup.sh --test
 ```
 
 ### Configuration Management
 ```bash
 # Validate configuration
-./validate_config.sh validate
+./lib/validate_config.sh validate
 
 # Test all connections
-./validate_config.sh test
+./lib/validate_config.sh test
 
 # Discover databases
-./discover_databases.sh discover production_server
+./lib/discover_databases.sh discover production_server
 
 # Generate config for specific databases
-./discover_databases.sh generate production_server specific "app,users,orders"
+./lib/discover_databases.sh generate production_server specific "app,users,orders"
 ```
 
 ### System Status
 ```bash
 # Show comprehensive status
-./backup.sh status
+./bin/backup.sh status
 
 # View recent logs
 tail -f logs/backup_$(date +%Y%m%d).log
@@ -291,7 +306,7 @@ du -sh backups/*/
    ssh-copy-id -i ./keys/backup_key.pub user@server
    ```
 
-3. Configure in `server_config.json`:
+3. Configure in `conf/server_config.json`:
    ```json
    "auth_type": "key",
    "private_key": "./keys/backup_key"
@@ -319,7 +334,7 @@ du -sh backups/*/
 #### Connection Failures
 ```bash
 # Test connections manually
-./validate_config.sh test
+./lib/validate_config.sh test
 
 # Check SSH connectivity
 ssh -i ./keys/your_key user@server
@@ -338,7 +353,7 @@ chmod 600 keys/*
 chmod 700 keys/
 
 # Fix config permissions
-chmod 600 server_config.json
+chmod 600 conf/server_config.json
 ```
 
 #### Disk Space Issues
@@ -391,10 +406,10 @@ The system automatically chooses the best connection method:
 ### Backup Status
 ```bash
 # System overview
-./backup.sh status
+./bin/backup.sh status
 
 # Detailed server status
-./validate_config.sh test
+./lib/validate_config.sh test
 
 # Recent backup activity
 tail -20 logs/backup_$(date +%Y%m%d).log
@@ -415,7 +430,7 @@ log show --predicate 'eventMessage contains "cron"' --last 1h  # macOS
 
 ### Schedule Configuration
 
-Add scheduling and cleanup settings to your `server_config.json`:
+Add scheduling and cleanup settings to your `conf/server_config.json`:
 
 ```json
 {
@@ -442,13 +457,13 @@ The backup scheduler handles automated backups and cleanup:
 
 ```bash
 # Check schedules and run backups if needed
-./backup_scheduler.sh check
+./bin/backup_scheduler.sh check
 
 # Force full backup for all servers
-./backup_scheduler.sh force-full
+./bin/backup_scheduler.sh force-full
 
 # Run cleanup only (no backups)
-./backup_scheduler.sh cleanup
+./bin/backup_scheduler.sh cleanup
 ```
 
 ### Interval Formats
@@ -470,22 +485,22 @@ Use this if you have `schedule` configuration in your JSON:
 
 ```bash
 # Set up daily backups at 2 AM
-./setup_cron.sh daily
+./bin/setup_cron.sh daily
 
 # Set up weekly backups on Sunday at 2 AM
-./setup_cron.sh weekly
+./bin/setup_cron.sh weekly
 
 # Set up hourly backups
-./setup_cron.sh hourly
+./bin/setup_cron.sh hourly
 
 # Custom schedule (every 6 hours)
-./setup_cron.sh custom "0 */6 * * *"
+./bin/setup_cron.sh custom "0 */6 * * *"
 
 # View current cron job status
-./setup_cron.sh status
+./bin/setup_cron.sh status
 
 # Remove cron job
-./setup_cron.sh remove
+./bin/setup_cron.sh remove
 ```
 
 #### Option 2: Traditional Schedule
@@ -493,11 +508,11 @@ Use the original setup if you prefer the simple monthly full + daily incremental
 
 ```bash
 # This sets up: Daily at midnight, full backup on 1st of month
-./setup.sh
+./bin/setup.sh
 ```
 
 #### Automatic Detection
-When you run `./setup.sh`, it will automatically:
+When you run `./bin/setup.sh`, it will automatically:
 - Detect if you have `schedule` configuration
 - Offer to set up the appropriate scheduler
 - Guide you through the setup process
@@ -556,19 +571,19 @@ The restore script provides intelligent backup restoration with automatic detect
 
 ```bash
 # Restore latest backup
-./restore.sh production_server app_database
+./bin/restore.sh production_server app_database
 
 # Restore to specific date
-./restore.sh -d 2025-08-15 production_server app_database
+./bin/restore.sh -d 2025-08-15 production_server app_database
 
 # Restore to different target server
-./restore.sh -t 192.168.1.200 -u restore_user -p password production_server app_database
+./bin/restore.sh -t 192.168.1.200 -u restore_user -p password production_server app_database
 
 # Dry run to preview restore plan
-./restore.sh --dry-run production_server app_database
+./bin/restore.sh --dry-run production_server app_database
 
 # Force restore without prompts
-./restore.sh --force production_server app_database
+./bin/restore.sh --force production_server app_database
 ```
 
 ### Restore Process
@@ -618,26 +633,26 @@ The restore script intelligently detects and processes backups:
 
 ```bash
 # Restore to specific date (includes all applicable backups)
-./restore.sh -d 2025-08-15 production_server app_database
+./bin/restore.sh -d 2025-08-15 production_server app_database
 
 # Restore to yesterday
-./restore.sh -d $(date -v-1d +%Y-%m-%d) production_server app_database
+./bin/restore.sh -d $(date -v-1d +%Y-%m-%d) production_server app_database
 
 # Preview restore plan for last week
-./restore.sh --dry-run -d $(date -v-7d +%Y-%m-%d) production_server app_database
+./bin/restore.sh --dry-run -d $(date -v-7d +%Y-%m-%d) production_server app_database
 ```
 
 ### Cross-Server Restore
 
 ```bash
 # Restore to different server
-./restore.sh -t 192.168.1.200 -u restore_user -p password production_server app_database
+./bin/restore.sh -t 192.168.1.200 -u restore_user -p password production_server app_database
 
 # Restore with different SSL settings
-./restore.sh --ssl-mode require -t secure.db.server production_server app_database
+./bin/restore.sh --ssl-mode require -t secure.db.server production_server app_database
 
 # Restore to local development environment
-./restore.sh -t localhost -u dev_user -p dev_password production_server app_database
+./bin/restore.sh -t localhost -u dev_user -p dev_password production_server app_database
 ```
 
 ### Manual Restore Process (Alternative)
@@ -731,13 +746,13 @@ gunzip < backups/server1/database1/incremental_backup_database1_20250103_000000.
 ### Configuration Assistance
 ```bash
 # Generate sample configuration
-./validate_config.sh sample
+./lib/validate_config.sh sample
 
 # Discover available databases
-./discover_databases.sh discover server_name
+./lib/discover_databases.sh discover server_name
 
 # Generate config snippets
-./discover_databases.sh generate server_name specific "db1,db2"
+./lib/discover_databases.sh generate server_name specific "db1,db2"
 ```
 
 ---
